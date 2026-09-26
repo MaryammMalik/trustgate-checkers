@@ -1,4 +1,4 @@
-﻿# TrustGate
+# TrustGate
 
 TrustGate is an automated code review pipeline that checks AI-generated pull requests for two categories of risk before they are merged.
 
@@ -113,15 +113,3 @@ Edit ALLOWLIST in dependency_verifier.py:
 Edit IMPORT_TO_PYPI in dependency_verifier.py:
 
     IMPORT_TO_PYPI = {"myimport": "my-pypi-package-name"}
-
-## Bob Session Screenshots
-See the screenshots/ folder for Bob-assisted development sessions.
-
-## Notes
-
-- runs/ is excluded from version control (see .gitignore)
-- screenshots/ should be committed - it is required for the deliverables checklist
-- Never commit .env or any file containing BOB_API_KEY - only .env.example is committed
-- Check git history is clean before final delivery: git log -p | Select-String "BOB_API_KEY"
-
-
