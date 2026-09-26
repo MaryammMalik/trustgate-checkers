@@ -101,12 +101,5 @@ Set environment variables before running:
     $env:BOB_API_URL = "https://your-endpoint/v1/chat/completions"
     $env:BOB_MODEL   = "gpt-4o"
 
-## Bob Session Screenshots
-See the screenshots/ folder for Bob-assisted development sessions.
 
-## Notes
 
-- runs/ is excluded from version control (see .gitignore)
-- screenshots/ should be committed - it is required for the deliverables checklist
-- Never commit .env or any file containing OPENAI_API_KEY
-- Check git history is clean before final delivery: git log -p | Select-String "OPENAI_API_KEY"
