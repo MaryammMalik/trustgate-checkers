@@ -1,0 +1,29 @@
+﻿# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Pytest cache
+.pytest_cache/
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# Environment variables / secrets
+.env
+.env.*
+
+# Runtime outputs
+runs/
+
+# Editor
+.vscode/
+.idea/
+
+# Build / packaging
+dist/
+build/
+*.egg-info/
