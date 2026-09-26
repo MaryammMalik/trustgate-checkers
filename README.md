@@ -22,7 +22,7 @@ Key features:
 - Word-boundary regex for short patterns (AGPL, LGPL, BUSL, ELv2) to avoid substring collisions
 - Negation context detection: "this is NOT GPL" is escalated to Bob, not auto-reported
 - Two-tier system: confident matches are reported directly; ambiguous matches are escalated to Bob
-- Bob / OpenAI-compatible LLM escalation for borderline cases
+- Bob Shell escalation for borderline cases (see Bob Escalation section below)
 
 ## Project Structure
 
@@ -41,6 +41,7 @@ Key features:
         test_checkers.py
     screenshots/
     runs/
+    .env.example
     requirements.txt
     .gitignore
     README.md
@@ -49,9 +50,27 @@ Key features:
 
     pip install -r requirements.txt
 
-For Bob escalation in the License Checker, set your API key:
+### Bob escalation setup (License Checker)
 
-    $env:OPENAI_API_KEY = "sk-..."
+Bob escalation uses **Bob Shell**, IBM Bob's CLI tool for headless/scripted
+tasks - not a plain HTTP API.
+
+1. Install Bob Shell:
+
+       powershell -c "irm -Uri https://bob.ibm.com/download/bobshell.ps1 | iex"
+
+2. Copy `.env.example` to `.env` and add your real Bob API key:
+
+       BOB_API_KEY=your-real-key-here
+
+   `.env` is gitignored and never committed. `.env.example` is the
+   committed template teammates should copy.
+
+3. The checker automatically loads `.env` via `python-dotenv` and calls
+   `bob run <prompt> -f json` under the hood for each ambiguous case.
+
+If `BOB_API_KEY` is not set, or Bob Shell is not installed, ambiguous
+cases are silently skipped rather than wrongly auto-reported or crashing.
 
 ## Running Tests
 
@@ -95,11 +114,14 @@ Edit IMPORT_TO_PYPI in dependency_verifier.py:
 
     IMPORT_TO_PYPI = {"myimport": "my-pypi-package-name"}
 
-### Overriding the Bob escalation endpoint (License Checker)
-Set environment variables before running:
+## Bob Session Screenshots
+See the screenshots/ folder for Bob-assisted development sessions.
 
-    $env:BOB_API_URL = "https://your-endpoint/v1/chat/completions"
-    $env:BOB_MODEL   = "gpt-4o"
+## Notes
 
+- runs/ is excluded from version control (see .gitignore)
+- screenshots/ should be committed - it is required for the deliverables checklist
+- Never commit .env or any file containing BOB_API_KEY - only .env.example is committed
+- Check git history is clean before final delivery: git log -p | Select-String "BOB_API_KEY"
 
 
