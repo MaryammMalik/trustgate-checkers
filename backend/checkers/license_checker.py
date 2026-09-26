@@ -12,114 +12,65 @@ import json
 import os
 import re
 import pathlib
-import requests
+from dotenv import load_dotenv
 
-# Marker phrases grouped by license type, each with its own severity.
-# GPL/AGPL = high risk (strong copyleft, incompatible with MIT).
-# Apache/proprietary = medium risk (may need attribution or may be closed-source).
+load_dotenv()
+
 LICENSE_MARKERS = {
     "GPL": {
         "severity": "high",
         "patterns": [
-            "GNU GENERAL PUBLIC LICENSE",
-            "GPL-3.0",
-            "GPL-2.0",
-            "GPL-1.0",
-            "licensed under the GPL",
-            "GNU Lesser General Public License",
-            "GNU AFFERO GENERAL PUBLIC LICENSE",
-            "AGPL",
-            "AGPL-3.0",
-            "LGPL",
-            "LGPL-2.0",
-            "LGPL-2.1",
-            "LGPL-3.0",
-            "www.gnu.org/licenses",
-            "version 3 of the License",
-            "EUPL",
-            "copyleft",
+            "GNU GENERAL PUBLIC LICENSE", "GPL-3.0", "GPL-2.0", "GPL-1.0",
+            "licensed under the GPL", "GNU Lesser General Public License",
+            "GNU AFFERO GENERAL PUBLIC LICENSE", "AGPL", "AGPL-3.0",
+            "LGPL", "LGPL-2.0", "LGPL-2.1", "LGPL-3.0",
+            "www.gnu.org/licenses", "version 3 of the License", "EUPL", "copyleft",
         ],
     },
     "Apache": {
         "severity": "medium",
         "patterns": [
-            "Apache License",
-            "Apache-2.0",
-            "Apache-1.1",
-            "Apache-1.0",
-            "www.apache.org/licenses",
-            "apache.org/licenses/LICENSE-2.0",
+            "Apache License", "Apache-2.0", "Apache-1.1", "Apache-1.0",
+            "www.apache.org/licenses", "apache.org/licenses/LICENSE-2.0",
             "SPDX-License-Identifier: Apache",
         ],
     },
     "Proprietary": {
         "severity": "medium",
         "patterns": [
-            "All Rights Reserved",
-            "Proprietary and confidential",
-            "Unauthorized copying of this file",
-            "Do not distribute",
-            "internal use only",
-            "not for distribution",
-            "trade secret",
+            "All Rights Reserved", "Proprietary and confidential",
+            "Unauthorized copying of this file", "Do not distribute",
+            "internal use only", "not for distribution", "trade secret",
         ],
     },
     "MPL": {
         "severity": "medium",
-        "patterns": [
-            "Mozilla Public License",
-            "MPL-2.0",
-            "MPL-1.1",
-        ],
+        "patterns": ["Mozilla Public License", "MPL-2.0", "MPL-1.1"],
     },
     "Restrictive": {
         "severity": "high",
         "patterns": [
-            "Business Source License",
-            "BUSL",
-            "SSPL",
-            "Server Side Public License",
-            "Commons Clause",
-            "Elastic License",
-            "ELv2",
+            "Business Source License", "BUSL", "SSPL",
+            "Server Side Public License", "Commons Clause",
+            "Elastic License", "ELv2",
         ],
     },
 }
 
-# Weaker/ambiguous phrases that might just be informal wording, not a
-# real license claim. These go to Bob for a second opinion instead of
-# being auto-reported as a finding.
 AMBIGUOUS_HINTS = [
-    "confidential",
-    "proprietary",
-    "SPDX-License-Identifier:",
-    "creative commons",
-    "CC BY-SA",
-    "CC BY",
-    "do not copy",
+    "confidential", "proprietary", "SPDX-License-Identifier:",
+    "creative commons", "CC BY-SA", "CC BY", "do not copy",
 ]
 
-
-# Patterns short enough to cause substring collisions (e.g. "AGPL" inside
-# "navigpl", "LGPL" inside a longer token). These are matched with word
-# boundaries instead of plain substring search.
 _SHORT_PATTERNS = {
     "AGPL", "LGPL", "LGPL-2.0", "LGPL-2.1", "LGPL-3.0",
-    "BUSL", "SSPL", "ELv2", "EUPL",
-    "copyleft", "CC BY", "CC BY-SA",
+    "BUSL", "SSPL", "ELv2", "EUPL", "copyleft", "CC BY", "CC BY-SA",
 }
 
-# Words that, when found on the same line as a marker, suggest the marker
-# is being cited or disclaimed rather than claimed (e.g. "NOT GPL").
 _NEGATORS = ("not ", "non-", "no ", "without ", "isn't", "neither", "unlike")
 
 
 def _marker_present(marker, text):
-    """Return True if `marker` appears in `text` (case-insensitive).
-
-    Uses word-boundary regex for short/collision-prone patterns;
-    plain substring for long unambiguous phrases.
-    """
     m = marker.lower()
     t = text.lower()
     if marker in _SHORT_PATTERNS:
@@ -128,26 +79,15 @@ def _marker_present(marker, text):
 
 
 def _is_negated(marker, line_text):
-    """Return True if the line containing `marker` uses a negating phrase,
-    suggesting the marker is being disclaimed rather than claimed."""
     lower = line_text.lower()
     return any(neg in lower for neg in _NEGATORS)
 
 
 def scan_headers(path):
-    """Scan the first 15 lines of every .py file for license markers.
-
-    Returns:
-        findings: confident matches, ready to report directly
-        ambiguous: weaker matches that should be escalated to Bob
-    """
     findings = []
     ambiguous = []
 
     for p in pathlib.Path(path).rglob("*.py"):
-        # Skip the checker scripts themselves - they contain license
-        # keywords in their own pattern lists, which would otherwise
-        # cause false positives when scanning backend/checkers/.
         if "checkers" in p.parts:
             continue
         try:
@@ -162,7 +102,6 @@ def scan_headers(path):
                 if not _marker_present(marker, head):
                     continue
 
-                # Find the exact line number for the match
                 line_no = 1
                 matched_line_text = ""
                 for i, line in enumerate(lines, start=1):
@@ -171,8 +110,6 @@ def scan_headers(path):
                         matched_line_text = line
                         break
 
-                # If the matching line disclaims the license, escalate to
-                # Bob instead of auto-reporting as a hard finding.
                 if _is_negated(marker, matched_line_text):
                     ambiguous.append({
                         "file": str(p),
@@ -209,13 +146,6 @@ def scan_headers(path):
     return findings, ambiguous
 
 
-# OpenAI-compatible endpoint and model used for Bob escalation.
-# Override via environment variables if needed.
-BOB_API_URL = os.environ.get(
-    "BOB_API_URL", "https://api.openai.com/v1/chat/completions"
-)
-BOB_MODEL = os.environ.get("BOB_MODEL", "gpt-4o-mini")
-
 _ESCALATION_PROMPT = """\
 You are a software license compliance reviewer.
 A file header from an MIT-licensed project has been flagged as possibly \
@@ -234,19 +164,16 @@ Reply with exactly YES or NO on the first line, then one sentence of reasoning."
 
 def escalate_to_bob(ambiguous_cases):
     """
-    Send each ambiguous header snippet to an LLM (Bob / OpenAI-compatible)
-    and ask whether it's a real license violation.
+    Send each ambiguous header snippet to Bob Shell (headless mode) and
+    ask whether it's a real license violation.
 
-    Requires the environment variable OPENAI_API_KEY to be set.
-    If the API key is missing or the request fails, the case is silently
-    skipped (conservative: no false positives from network errors).
-
-    Returns:
-        list of finding dicts for cases the LLM confirmed as violations.
+    Requires the BOB_API_KEY environment variable to be set, and the
+    `bob` CLI (Bob Shell) installed and on PATH.
     """
-    api_key = os.environ.get("OPENAI_API_KEY")
+    import subprocess
+
+    api_key = os.environ.get("BOB_API_KEY")
     if not api_key:
-        # Can't escalate without a key — skip rather than crash or false-flag.
         return []
 
     confirmed_findings = []
@@ -257,25 +184,18 @@ def escalate_to_bob(ambiguous_cases):
             snippet=case["snippet"],
         )
         try:
-            response = requests.post(
-                BOB_API_URL,
-                headers={
-                    "Authorization": f"Bearer {api_key}",
-                    "Content-Type": "application/json",
-                },
-                json={
-                    "model": BOB_MODEL,
-                    "messages": [{"role": "user", "content": prompt}],
-                    "max_tokens": 80,
-                    "temperature": 0,
-                },
-                timeout=20,
+            result = subprocess.run(
+                ["bob", "run", prompt, "-f", "json", "--accept-license"],
+                capture_output=True,
+                text=True,
+                timeout=30,
             )
-            response.raise_for_status()
-            reply = response.json()["choices"][0]["message"]["content"].strip()
-        except Exception:
-            # Network error, quota exceeded, malformed response, etc.
-            # Skip conservatively rather than wrongly auto-reporting.
+            output = json.loads(result.stdout)
+            reply = output.get("last_message", "").strip()
+        except (subprocess.TimeoutExpired, json.JSONDecodeError, FileNotFoundError):
+            continue
+
+        if not reply:
             continue
 
         first_line = reply.splitlines()[0].strip().upper()
@@ -297,18 +217,6 @@ def escalate_to_bob(ambiguous_cases):
 
 
 def run(pr_branch_path, run_id, member="maryam-malik"):
-    """
-    Main entry point called by the orchestrator.
-
-    Args:
-        pr_branch_path: path to the branch/repo folder to scan
-        run_id: unique id for this run (used as the output filename)
-        member: who owns this checker (default: maryam-malik)
-
-    Returns:
-        dict matching the shared runs/ JSON contract. Also writes the
-        result to runs/<run_id>.json.
-    """
     findings, ambiguous = scan_headers(pr_branch_path)
 
     if ambiguous:
